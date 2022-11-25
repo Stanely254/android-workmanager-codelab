@@ -20,10 +20,12 @@ import android.app.Application
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import android.net.Uri.Builder
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.work.*
+import com.example.background.R.drawable
 import com.example.background.workers.BlurWorker
 import com.example.background.workers.CleanUpWorker
 import com.example.background.workers.SaveImageToFileWorker
@@ -53,6 +55,10 @@ class BlurViewModel(application: Application) : ViewModel() {
 //        var continuation = workManager.beginWith(
 //            OneTimeWorkRequest.from(CleanUpWorker::class.java)
 //        )
+        val constraints = Constraints.Builder()
+            .setRequiresCharging(true)
+            .build()
+
         var continuation = workManager.beginUniqueWork(
             IMAGE_MANIPULATION_WORK_NAME,
             ExistingWorkPolicy.REPLACE,
@@ -74,6 +80,7 @@ class BlurViewModel(application: Application) : ViewModel() {
         continuation = continuation.then(blurRequest)*/
 
         val save = OneTimeWorkRequest.Builder(SaveImageToFileWorker::class.java)
+            .setConstraints(constraints)
             .addTag(TAG_OUTPUT)
             .build()
         continuation = continuation.then(save)
@@ -81,6 +88,10 @@ class BlurViewModel(application: Application) : ViewModel() {
         continuation.enqueue()
 
         //workManager.enqueue(blurRequest)
+    }
+
+    internal fun cancelWork(){
+        workManager.cancelUniqueWork(IMAGE_MANIPULATION_WORK_NAME)
     }
 
     /**
@@ -103,17 +114,16 @@ class BlurViewModel(application: Application) : ViewModel() {
         }
     }
 
-    private fun getImageUri(context: Context): Uri {
+    private fun getImageUri(context: Context): Uri
+    {
         val resources = context.resources
 
-        val imageUri = Uri.Builder()
+        return Builder()
             .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
-            .authority(resources.getResourcePackageName(R.drawable.android_cupcake))
-            .appendPath(resources.getResourceTypeName(R.drawable.android_cupcake))
-            .appendPath(resources.getResourceEntryName(R.drawable.android_cupcake))
+            .authority(resources.getResourcePackageName(drawable.android_cupcake))
+            .appendPath(resources.getResourceTypeName(drawable.android_cupcake))
+            .appendPath(resources.getResourceEntryName(drawable.android_cupcake))
             .build()
-
-        return imageUri
     }
 
     internal fun setOutputUri(outputImageUri: String?) {
@@ -122,7 +132,7 @@ class BlurViewModel(application: Application) : ViewModel() {
 
     class BlurViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
 
-        override fun <T : ViewModel?> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return if (modelClass.isAssignableFrom(BlurViewModel::class.java)) {
                 BlurViewModel(application) as T
             } else {
